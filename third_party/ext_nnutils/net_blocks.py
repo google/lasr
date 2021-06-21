@@ -339,11 +339,11 @@ class Encoder(nn.Module):
         return feat
 
 class QuatPredictor(nn.Module):
-    def __init__(self, nz_feat, nz_rot=4, classify_rot=False,n_mesh=None,n_hypo=None):
+    def __init__(self, nz_feat, nz_rot=4, classify_rot=False,n_bones=None,n_hypo=None):
         super(QuatPredictor, self).__init__()
-        self.pred_layer = nn.Linear(nz_feat, nz_rot*n_mesh*n_hypo)
+        self.pred_layer = nn.Linear(nz_feat, nz_rot*n_bones*n_hypo)
         self.classify_rot = classify_rot
-        self.nmesh = n_mesh
+        self.nmesh = n_bones
         self.nhypo = n_hypo
         self.nz_feat = nz_feat
 
@@ -370,9 +370,9 @@ class QuatPredictor(nn.Module):
 
 
 class DepthPredictor(nn.Module):
-    def __init__(self, nz,n_mesh=None,offset=10):
+    def __init__(self, nz,n_bones=None,offset=10):
         super(DepthPredictor, self).__init__()
-        self.pred_layer = nn.Linear(nz, 1*n_mesh)
+        self.pred_layer = nn.Linear(nz, 1*n_bones)
         self.nz_feat = nz
         self.offset=offset
 
@@ -396,10 +396,10 @@ class TransPredictor(nn.Module):
     Outputs [tx, ty] or [tx, ty, tz]
     """
 
-    def __init__(self, nz, orth=True,n_mesh=None):
+    def __init__(self, nz, orth=True,n_bones=None):
         super(TransPredictor, self).__init__()
         if orth:
-            self.pred_layer = nn.Linear(nz, 2*n_mesh)
+            self.pred_layer = nn.Linear(nz, 2*n_bones)
         else:
             self.pred_layer = nn.Linear(nz, 3)
 
@@ -422,17 +422,17 @@ class PPointPredictor(nn.Module):
 
 
 class CodePredictor(nn.Module):
-    def __init__(self, nz_feat=100, num_verts=1000,n_mesh = None, n_hypo=None):
+    def __init__(self, nz_feat=100, num_verts=1000,n_bones = None, n_hypo=None):
         super(CodePredictor, self).__init__()
         self.offset = 20
         torch.manual_seed(0)
-        self.quat_predictor = QuatPredictor(nz_feat, n_mesh=n_mesh, n_hypo=n_hypo)
-        self.scale_predictor = DepthPredictor(nz_feat,n_mesh=n_hypo,offset=self.offset)
-        self.trans_predictor = TransPredictor(nz_feat,n_mesh=n_mesh)
-        self.depth_predictor = DepthPredictor(nz_feat,n_mesh=n_mesh,offset=self.offset)
+        self.quat_predictor = QuatPredictor(nz_feat, n_bones=n_bones, n_hypo=n_hypo)
+        self.scale_predictor = DepthPredictor(nz_feat,n_bones=n_hypo,offset=self.offset)
+        self.trans_predictor = TransPredictor(nz_feat,n_bones=n_bones)
+        self.depth_predictor = DepthPredictor(nz_feat,n_bones=n_bones,offset=self.offset)
         self.ppoint_predictor = PPointPredictor(nz_feat)
 
-        self.nmesh = n_mesh
+        self.nmesh = n_bones
         self.nhypo = n_hypo
 
     def forward(self, feat):

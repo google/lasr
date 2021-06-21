@@ -24,7 +24,7 @@ symm=$7
 
 CUDA_VISIBLE_DEVICES=$dev python extract.py --checkpoint_dir $logdir/ --name $modelname \
 --num_train_epoch $epoch \
---notexture --only_mean_sym --n_mesh $nmesh --dataname $dataname \
+--notexture --only_mean_sym --n_bones $nmesh --dataname $dataname \
 --evolve $evolve --${symm}symmetric
 
 ffmpeg -r $fr -i $logdir/$modelname/render-%*.png -c:v libx264 -vf fps=$fr -pix_fmt  yuv420p $logdir/$modelname/$dataname-$modelname-$epoch.mp4

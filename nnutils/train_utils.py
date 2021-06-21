@@ -240,15 +240,15 @@ class LASRTrainer(Trainer):
             epoch_iter = 0
 
             # reinit bones
-            if self.opts.local_rank==0 and epoch==0 and self.opts.n_mesh>1:
+            if self.opts.local_rank==0 and epoch==0 and self.opts.n_bones>1:
                 for hypo_idx in range(self.opts.n_hypo):
                     
                     cluster_ids_x, cluster_centers = kmeans(
-                    X=self.model.module.symmetrize(self.model.module.mean_v[hypo_idx]), num_clusters=self.opts.n_mesh-1, distance='euclidean', device=torch.device('cuda:%d'%(opts.local_rank)))
-                    self.model.module.rest_ts.data[hypo_idx*(self.opts.n_mesh-1):(hypo_idx+1)*(self.opts.n_mesh-1)] = cluster_centers.cuda()
-                    self.model.module.ctl_ts .data[hypo_idx*(self.opts.n_mesh-1):(hypo_idx+1)*(self.opts.n_mesh-1)] = cluster_centers.cuda()
-                    self.model.module.ctl_rs.data = torch.Tensor([[0,0,0,1]]).repeat(opts.n_hypo*(opts.n_mesh-1),1).cuda()
-                    self.model.module.log_ctl.data= torch.Tensor([[1,1,1]]).cuda().repeat(opts.n_hypo*(opts.n_mesh-1),1)  # control point varuance
+                    X=self.model.module.symmetrize(self.model.module.mean_v[hypo_idx]), num_clusters=self.opts.n_bones-1, distance='euclidean', device=torch.device('cuda:%d'%(opts.local_rank)))
+                    self.model.module.rest_ts.data[hypo_idx*(self.opts.n_bones-1):(hypo_idx+1)*(self.opts.n_bones-1)] = cluster_centers.cuda()
+                    self.model.module.ctl_ts .data[hypo_idx*(self.opts.n_bones-1):(hypo_idx+1)*(self.opts.n_bones-1)] = cluster_centers.cuda()
+                    self.model.module.ctl_rs.data = torch.Tensor([[0,0,0,1]]).repeat(opts.n_hypo*(opts.n_bones-1),1).cuda()
+                    self.model.module.log_ctl.data= torch.Tensor([[1,1,1]]).cuda().repeat(opts.n_hypo*(opts.n_bones-1),1)  # control point varuance
             dist.barrier()
             dist.broadcast(self.model.module.ctl_ts, 0)
             dist.broadcast(self.model.module.rest_ts, 0)
@@ -314,7 +314,7 @@ class LASRTrainer(Trainer):
                         add_image(log,'train/flow_error', opts.img_size*error,epoch)
 
                         add_image(log,'train/mask', 255*np.asarray(aux_output['mask_pred'][optim_cam:optim_cam+1].detach().cpu()),epoch)
-                        if opts.n_mesh>1:
+                        if opts.n_bones>1:
                             add_image(log,'train/part', np.asarray(255*aux_output['part_render'][:1].detach().cpu().permute(0,2,3,1), dtype=np.uint8),epoch)
                         add_image(log,'train/maskgt', 255*np.asarray(self.model.module.masks[:1].detach().cpu()),epoch)
                         img1_j = np.asarray(255*self.model.module.imgs[:1].permute(0,2,3,1).detach().cpu()).astype(np.uint8)
@@ -323,7 +323,7 @@ class LASRTrainer(Trainer):
 
                         if 'texture_render' in aux_output.keys():
                             texture_j = np.asarray(aux_output['texture_render'][optim_cam:optim_cam+1].permute(0,2,3,1).detach().cpu()*255,dtype=np.uint8)
-                            if opts.n_mesh>1:
+                            if opts.n_bones>1:
                                 for k in range(aux_output['ctl_proj'].shape[1]):
                                     texture_j[0] = cv2.circle(texture_j[0].copy(),tuple(128+128*np.asarray(aux_output['ctl_proj'][optim_cam].detach().cpu())[k,:2]),3,citylabs[k].tolist(),3)
                             add_image(log,'train/texture', texture_j,epoch,scale=False)
@@ -452,28 +452,28 @@ class LASRTrainer(Trainer):
         del states['mean_v']; 
         self.triangle_loss_fn_sr = ext_loss_utils.LaplacianLoss(mean_shape.cpu(), self.model.faces.cpu()).cuda()
         self.arap_loss_fn = loss_utils.ARAPLoss(            mean_shape.cpu(), self.model.faces.cpu()).cuda()
-        if states['code_predictor.depth_predictor.pred_layer.bias'].shape[0] != self.opts.n_mesh:  # from rigid body to deformable
+        if states['code_predictor.depth_predictor.pred_layer.bias'].shape[0] != self.opts.n_bones:  # from rigid body to deformable
             nfeat = states['code_predictor.quat_predictor.pred_layer.weight'].shape[-1]
-            quat_weights = torch.cat( [states['code_predictor.quat_predictor.pred_layer.weight'].view(-1,4,nfeat)[:1], self.model.code_predictor.quat_predictor.pred_layer.weight.view(self.opts.n_mesh,4,-1)[1:]],0).view(self.opts.n_mesh*4,-1)
-            quat_bias =    torch.cat( [states['code_predictor.quat_predictor.pred_layer.bias'].view(-1,4)[:1],         self.model.code_predictor.quat_predictor.pred_layer.bias.view(self.opts.n_mesh,-1)[1:]],0).view(-1)
+            quat_weights = torch.cat( [states['code_predictor.quat_predictor.pred_layer.weight'].view(-1,4,nfeat)[:1], self.model.code_predictor.quat_predictor.pred_layer.weight.view(self.opts.n_bones,4,-1)[1:]],0).view(self.opts.n_bones*4,-1)
+            quat_bias =    torch.cat( [states['code_predictor.quat_predictor.pred_layer.bias'].view(-1,4)[:1],         self.model.code_predictor.quat_predictor.pred_layer.bias.view(self.opts.n_bones,-1)[1:]],0).view(-1)
             states['code_predictor.quat_predictor.pred_layer.weight'] = quat_weights
             states['code_predictor.quat_predictor.pred_layer.bias'] = quat_bias
             
-            tmp_weights = torch.cat( [states['code_predictor.trans_predictor.pred_layer.weight'].view(-1,2,nfeat)[:1], self.model.code_predictor.trans_predictor.pred_layer.weight.view(self.opts.n_mesh,2,-1)[1:]],0).view(self.opts.n_mesh*2,-1)
-            tmp_bias =    torch.cat( [states['code_predictor.trans_predictor.pred_layer.bias'].view(-1,2)[:1],         self.model.code_predictor.trans_predictor.pred_layer.bias.view(self.opts.n_mesh,-1)[1:]],0).view(-1)
+            tmp_weights = torch.cat( [states['code_predictor.trans_predictor.pred_layer.weight'].view(-1,2,nfeat)[:1], self.model.code_predictor.trans_predictor.pred_layer.weight.view(self.opts.n_bones,2,-1)[1:]],0).view(self.opts.n_bones*2,-1)
+            tmp_bias =    torch.cat( [states['code_predictor.trans_predictor.pred_layer.bias'].view(-1,2)[:1],         self.model.code_predictor.trans_predictor.pred_layer.bias.view(self.opts.n_bones,-1)[1:]],0).view(-1)
             states['code_predictor.trans_predictor.pred_layer.weight'] = tmp_weights
             states['code_predictor.trans_predictor.pred_layer.bias'] =   tmp_bias
             
-            tmp_weights = torch.cat( [states['code_predictor.depth_predictor.pred_layer.weight'].view(-1,1,nfeat)[:1], self.model.code_predictor.depth_predictor.pred_layer.weight.view(self.opts.n_mesh,1,-1)[1:]],0).view(self.opts.n_mesh*1,-1)
-            tmp_bias =    torch.cat( [states['code_predictor.depth_predictor.pred_layer.bias'].view(-1,1)[:1],         self.model.code_predictor.depth_predictor.pred_layer.bias.view(self.opts.n_mesh,-1)[1:]],0).view(-1)
+            tmp_weights = torch.cat( [states['code_predictor.depth_predictor.pred_layer.weight'].view(-1,1,nfeat)[:1], self.model.code_predictor.depth_predictor.pred_layer.weight.view(self.opts.n_bones,1,-1)[1:]],0).view(self.opts.n_bones*1,-1)
+            tmp_bias =    torch.cat( [states['code_predictor.depth_predictor.pred_layer.bias'].view(-1,1)[:1],         self.model.code_predictor.depth_predictor.pred_layer.bias.view(self.opts.n_bones,-1)[1:]],0).view(-1)
             states['code_predictor.depth_predictor.pred_layer.weight'] = tmp_weights
             states['code_predictor.depth_predictor.pred_layer.bias'] =   tmp_bias
 
             # initialize skin based on mean shape 
             np.random.seed(18)
-            if self.opts.n_mesh>2:
+            if self.opts.n_bones>2:
                 cluster_ids_x, cluster_centers = kmeans(
-                X=mean_shape, num_clusters=self.opts.n_mesh-1, distance='euclidean')
+                X=mean_shape, num_clusters=self.opts.n_bones-1, distance='euclidean')
             else:
                 cluster_centers = mean_shape.mean(0)[None]
             print('centers:')

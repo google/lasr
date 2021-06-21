@@ -21,5 +21,5 @@ nepoch=10
 sil_path=none
 address=1253
 
-CUDA_VISIBLE_DEVICES=$dev python -m torch.distributed.launch --master_port $address --nproc_per_node=$ngpu optimize.py --name=$logname-0 --checkpoint_dir $checkpoint_dir --only_mean_sym --nouse_gtpose --subdivide 3 --n_mesh 21 --n_hypo 8 --num_epochs 5 --dataname $dataname  --sil_path $sil_path --ngpu $ngpu --batch_size 1 --opt_tex yes
-CUDA_VISIBLE_DEVICES=$dev python -m torch.distributed.launch --master_port $address --nproc_per_node=$ngpu optimize.py --name=$logname-1 --checkpoint_dir $checkpoint_dir --nosymmetric --nouse_gtpose --subdivide 3 --n_mesh 26 --n_faces 1600 --n_hypo 1 --num_epochs $nepoch --model_path $checkpoint_dir/$logname-0/pred_net_latest.pth --dataname $dataname  --sil_path $sil_path  --ngpu $ngpu --batch_size 1 --opt_tex yes
+CUDA_VISIBLE_DEVICES=$dev python -m torch.distributed.launch --master_port $address --nproc_per_node=$ngpu optimize.py --name=$logname-0 --checkpoint_dir $checkpoint_dir --only_mean_sym --nouse_gtpose --subdivide 3 --n_bones 21 --n_hypo 8 --num_epochs 5 --dataname $dataname  --sil_path $sil_path --ngpu $ngpu --batch_size 1 --opt_tex yes
+CUDA_VISIBLE_DEVICES=$dev python -m torch.distributed.launch --master_port $address --nproc_per_node=$ngpu optimize.py --name=$logname-1 --checkpoint_dir $checkpoint_dir --nosymmetric --nouse_gtpose --subdivide 3 --n_bones 26 --n_faces 1600 --n_hypo 1 --num_epochs $nepoch --model_path $checkpoint_dir/$logname-0/pred_net_latest.pth --dataname $dataname  --sil_path $sil_path  --ngpu $ngpu --batch_size 1 --opt_tex yes

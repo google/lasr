@@ -120,7 +120,7 @@ class MeshNet(nn.Module):
         self.faces = Variable(torch.LongTensor(faces), requires_grad=False)
 
         self.encoder = nb.Encoder(input_shape, n_blocks=4, nz_feat=nz_feat)
-        self.code_predictor = nb.CodePredictor(nz_feat=nz_feat, num_verts=self.num_output,n_mesh=opts.n_mesh,n_hypo = opts.n_hypo)
+        self.code_predictor = nb.CodePredictor(nz_feat=nz_feat, num_verts=self.num_output,n_bones=opts.n_bones,n_hypo = opts.n_hypo)
 
     def forward(self, batch_input):
         pass

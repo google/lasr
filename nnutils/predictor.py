@@ -137,10 +137,10 @@ class MeshPredictor(object):
             network.faces = states['faces'].cuda()
 
         if 'ctl_rs' in states.keys():
-            states['ctl_rs'] =   states['ctl_rs'].view(score_cams.shape[0],self.opts.n_mesh-1,-1)[optim_cam]
-            states['rest_ts'] = states['rest_ts'].view(score_cams.shape[0],self.opts.n_mesh-1,-1)[optim_cam]
-            states['ctl_ts'] =   states['ctl_ts'].view(score_cams.shape[0],self.opts.n_mesh-1,-1)[optim_cam]
-            states['log_ctl'] = states['log_ctl'].view(score_cams.shape[0],self.opts.n_mesh-1,-1)[optim_cam]
+            states['ctl_rs'] =   states['ctl_rs'].view(score_cams.shape[0],self.opts.n_bones-1,-1)[optim_cam]
+            states['rest_ts'] = states['rest_ts'].view(score_cams.shape[0],self.opts.n_bones-1,-1)[optim_cam]
+            states['ctl_ts'] =   states['ctl_ts'].view(score_cams.shape[0],self.opts.n_bones-1,-1)[optim_cam]
+            states['log_ctl'] = states['log_ctl'].view(score_cams.shape[0],self.opts.n_bones-1,-1)[optim_cam]
 
         # delete unused vars
         # load mesh
@@ -192,7 +192,7 @@ class MeshPredictor(object):
 
         quat = kornia.rotation_matrix_to_quaternion(quat.view(-1,3,3))
         quat = torch.cat([quat[:,3:],quat[:,:3]],1)
-        self.cam_pred = torch.cat([scale.repeat(1,opts.n_mesh).view(-1,1), trans, quat], 1)
+        self.cam_pred = torch.cat([scale.repeat(1,opts.n_bones).view(-1,1), trans, quat], 1)
         
         self.depth = depth
         self.ppoint = ppoint
@@ -224,7 +224,7 @@ class MeshPredictor(object):
        
         Rmat = kornia.quaternion_to_rotation_matrix(torch.cat((-proj_cam[:,4:],proj_cam[:,3:4]),1))
         Tmat = torch.cat([proj_cam[:,1:3],self.depth],1)
-        if opts.n_mesh>1:
+        if opts.n_bones>1:
             dis_norm = (self.model.ctl_ts[:,None] - self.pred_v[:1].detach()) # p-v, J,1,3 - 1,N,3
             dis_norm = dis_norm.matmul(kornia.quaternion_to_rotation_matrix(self.model.ctl_rs))
             dis_norm = self.model.log_ctl.exp()[:,None] * dis_norm.pow(2) # (p-v)^TS(p-v)
@@ -232,7 +232,7 @@ class MeshPredictor(object):
             # create vis for skins
             sphere_list = []
             sphere = trimesh.creation.uv_sphere(radius=0.05,count=[16, 16])
-            for i in range(opts.n_mesh-1):
+            for i in range(opts.n_bones-1):
                 sphere_verts = sphere.vertices
                 sphere_verts = sphere_verts / np.asarray((0.5*self.model.log_ctl.clamp(-2,2)).exp()[i,None].cpu())
                 sphere_verts = sphere_verts.dot(np.asarray(kornia.quaternion_to_rotation_matrix(self.model.ctl_rs[i]).cpu()).T)
@@ -251,33 +251,33 @@ class MeshPredictor(object):
             rest_ts = self.model.rest_ts
 
             # part transform
-            Rmat = Rmat.view(-1,opts.n_mesh,3,3)
-            Tmat = Tmat.view(-1,opts.n_mesh,3,1)
+            Rmat = Rmat.view(-1,opts.n_bones,3,3)
+            Tmat = Tmat.view(-1,opts.n_bones,3,1)
             Tmat[:,1:] = -Rmat[:,1:].matmul(rest_ts[None,:,:,None])+Tmat[:,1:]+rest_ts[None,:,:,None]
             Rmat[:,1:] = Rmat[:,1:].permute(0,1,3,2)
             Rmat = Rmat.view(-1,3,3)
             Tmat = Tmat.view(-1,3)
         else:skin=None
 
-        verts = obj_to_cam(self.pred_v, Rmat, Tmat[:,np.newaxis,:], opts.n_mesh,opts.n_hypo,skin)
-        if opts.n_mesh>1:
+        verts = obj_to_cam(self.pred_v, Rmat, Tmat[:,np.newaxis,:], opts.n_bones,opts.n_hypo,skin)
+        if opts.n_bones>1:
             # joints
             # joints to skin
-            self.joints_proj = obj_to_cam(self.model.ctl_ts[None].repeat(2*opts.batch_size,1,1), Rmat, Tmat[:,np.newaxis], opts.n_mesh,opts.n_hypo, torch.eye(opts.n_mesh-1)[None,:,:,None].cuda())
+            self.joints_proj = obj_to_cam(self.model.ctl_ts[None].repeat(2*opts.batch_size,1,1), Rmat, Tmat[:,np.newaxis], opts.n_bones,opts.n_hypo, torch.eye(opts.n_bones-1)[None,:,:,None].cuda())
             self.joints_proj = pinhole_cam(self.joints_proj, ppoint, scale)[0]
-            self.bones_3d = obj_to_cam(self.model.ctl_ts[None].repeat(2*opts.batch_size,1,1), Rmat, Tmat[:,np.newaxis], opts.n_mesh,opts.n_hypo, torch.eye(opts.n_mesh-1)[None,:,:,None].cuda(),tocam=False)
-            self.nsphere_verts = self.sphere.vertices.shape[0] // (opts.n_mesh-1)
-            self.gaussian_3d = obj_to_cam(torch.Tensor(self.sphere.vertices).cuda()[None], Rmat, Tmat[:,np.newaxis], opts.n_mesh, opts.n_hypo,
-                                torch.eye(opts.n_mesh-1)[None].repeat(self.nsphere_verts,1,1).permute(1,2,0).reshape(1,opts.n_mesh-1,-1,1).cuda(),tocam=False)
+            self.bones_3d = obj_to_cam(self.model.ctl_ts[None].repeat(2*opts.batch_size,1,1), Rmat, Tmat[:,np.newaxis], opts.n_bones,opts.n_hypo, torch.eye(opts.n_bones-1)[None,:,:,None].cuda(),tocam=False)
+            self.nsphere_verts = self.sphere.vertices.shape[0] // (opts.n_bones-1)
+            self.gaussian_3d = obj_to_cam(torch.Tensor(self.sphere.vertices).cuda()[None], Rmat, Tmat[:,np.newaxis], opts.n_bones, opts.n_hypo,
+                                torch.eye(opts.n_bones-1)[None].repeat(self.nsphere_verts,1,1).permute(1,2,0).reshape(1,opts.n_bones-1,-1,1).cuda(),tocam=False)
         else:
             self.joints_proj = torch.zeros(0,3).cuda()
             self.bones_3d = None
 
-        self.verts = obj_to_cam(self.pred_v, Rmat, Tmat[:,np.newaxis,:], opts.n_mesh,opts.n_hypo,skin,tocam=True)
+        self.verts = obj_to_cam(self.pred_v, Rmat, Tmat[:,np.newaxis,:], opts.n_bones,opts.n_hypo,skin,tocam=True)
         self.Tmat = torch.zeros(3,1).cuda()
         self.Rmat = torch.eye(3).cuda()
-        self.gaussian_3d = obj_to_cam(torch.Tensor(self.sphere.vertices).cuda()[None], Rmat, Tmat[:,np.newaxis], opts.n_mesh, opts.n_hypo,
-                                torch.eye(opts.n_mesh-1)[None].repeat(self.nsphere_verts,1,1).permute(1,2,0).reshape(1,opts.n_mesh-1,-1,1).cuda(),tocam=True)
+        self.gaussian_3d = obj_to_cam(torch.Tensor(self.sphere.vertices).cuda()[None], Rmat, Tmat[:,np.newaxis], opts.n_bones, opts.n_hypo,
+                                torch.eye(opts.n_bones-1)[None].repeat(self.nsphere_verts,1,1).permute(1,2,0).reshape(1,opts.n_bones-1,-1,1).cuda(),tocam=True)
         self.ppoint, self.scale = self.ppoint, scale
         verts = torch.cat([verts,torch.ones_like(verts[:, :, 0:1])], dim=-1)
         verts[:,:,1] = self.ppoint[:,1:2]+verts[:, :, 1].clone()*scale[:,:1]/ verts[:,:,2].clone()
@@ -294,7 +294,7 @@ class MeshPredictor(object):
         
         # start rendering
         Rmat_tex = Rmat.clone()
-        verts_tex = obj_to_cam(self.pred_v, Rmat_tex, Tmat[:,np.newaxis,:], opts.n_mesh,opts.n_hypo,skin)
+        verts_tex = obj_to_cam(self.pred_v, Rmat_tex, Tmat[:,np.newaxis,:], opts.n_bones,opts.n_hypo,skin)
         verts_tex = torch.cat([verts_tex,torch.ones_like(verts_tex[:, :, 0:1])], dim=-1)
         verts_tex = pinhole_cam(verts_tex, proj_pp, scale)
         self.renderer_softtex.rasterizer.background_color=[1,1,1]
@@ -309,7 +309,7 @@ class MeshPredictor(object):
         self.texture_render = self.texture_render[:,:,:,:3].permute(0,3,1,2)
 
         Rmat_tex[:1] = Rmat[:1].clone().matmul(kornia.quaternion_to_rotation_matrix(torch.Tensor([[0,-0.707,0,0.707]]).cuda()))
-        verts_tex = obj_to_cam(self.pred_v, Rmat_tex, Tmat[:,np.newaxis,:], opts.n_mesh,opts.n_hypo,skin)
+        verts_tex = obj_to_cam(self.pred_v, Rmat_tex, Tmat[:,np.newaxis,:], opts.n_bones,opts.n_hypo,skin)
         verts_tex = torch.cat([verts_tex,torch.ones_like(verts_tex[:, :, 0:1])], dim=-1)
         verts_tex = pinhole_cam(verts_tex, proj_pp, scale)
         offset = torch.Tensor( self.renderer_softtex.transform.transformer._eye ).cuda()[np.newaxis,np.newaxis]
@@ -319,10 +319,10 @@ class MeshPredictor(object):
         trimesh.repair.fix_normals(mesh)
         mesh = Meshes(verts=torch.Tensor(mesh.vertices[None]).cuda(), faces=torch.Tensor(mesh.faces[None]).cuda(),textures=TexturesVertex(verts_features=torch.Tensor(mesh.visual.vertex_colors[None,:,:3]).cuda()/500.))
         self.texture_vp2 = self.renderer_pyr(mesh)[:,:,:,:3].permute(0,3,1,2)
-        self.verts_vp2 = obj_to_cam(self.pred_v, Rmat_tex, Tmat[:,np.newaxis,:], opts.n_mesh,opts.n_hypo,skin,tocam=True)
+        self.verts_vp2 = obj_to_cam(self.pred_v, Rmat_tex, Tmat[:,np.newaxis,:], opts.n_bones,opts.n_hypo,skin,tocam=True)
         
         Rmat_tex[:1] = Rmat[:1].clone().matmul(kornia.quaternion_to_rotation_matrix(torch.Tensor([[-0.707,0,0,0.707]]).cuda()))
-        verts_tex = obj_to_cam(self.pred_v, Rmat_tex, Tmat[:,np.newaxis,:], opts.n_mesh,opts.n_hypo,skin)
+        verts_tex = obj_to_cam(self.pred_v, Rmat_tex, Tmat[:,np.newaxis,:], opts.n_bones,opts.n_hypo,skin)
         verts_tex = torch.cat([verts_tex,torch.ones_like(verts_tex[:, :, 0:1])], dim=-1)
         verts_tex = pinhole_cam(verts_tex, proj_pp, scale)
         offset = torch.Tensor( self.renderer_softtex.transform.transformer._eye ).cuda()[np.newaxis,np.newaxis]
@@ -332,17 +332,17 @@ class MeshPredictor(object):
         trimesh.repair.fix_normals(mesh)
         mesh = Meshes(verts=torch.Tensor(mesh.vertices[None]).cuda(), faces=torch.Tensor(mesh.faces[None]).cuda(),textures=TexturesVertex(verts_features=torch.Tensor(mesh.visual.vertex_colors[None,:,:3]).cuda()/500.))
         self.texture_vp3 = self.renderer_pyr(mesh)[:,:,:,:3].permute(0,3,1,2)
-        self.verts_vp3 = obj_to_cam(self.pred_v, Rmat_tex, Tmat[:,np.newaxis,:], opts.n_mesh,opts.n_hypo,skin,tocam=True)
+        self.verts_vp3 = obj_to_cam(self.pred_v, Rmat_tex, Tmat[:,np.newaxis,:], opts.n_bones,opts.n_hypo,skin,tocam=True)
         # end rendering
 
         Rmat_tex = Rmat.clone()
-        verts_tex = obj_to_cam(self.pred_v, Rmat_tex, Tmat[:,np.newaxis,:], opts.n_mesh,opts.n_hypo,skin)
+        verts_tex = obj_to_cam(self.pred_v, Rmat_tex, Tmat[:,np.newaxis,:], opts.n_bones,opts.n_hypo,skin)
         verts_tex = torch.cat([verts_tex,torch.ones_like(verts_tex[:, :, 0:1])], dim=-1)
         verts_tex = pinhole_cam(verts_tex, proj_pp, scale)
         offset = torch.Tensor( self.renderer_softtex.transform.transformer._eye ).cuda()[np.newaxis,np.newaxis]
         verts_pre = verts_tex[:,:,:3]-offset; verts_pre[:,:,1] = -1*verts_pre[:,:,1]
         self.skin_vis=[]
-        if self.opts.n_mesh>1:
+        if self.opts.n_bones>1:
             for i in range(skin.shape[1]):
                 self.skin_vis.append( self.renderer_softtex.render_mesh(sr.Mesh(verts_pre, self.faces, textures=skin[:1,i]*torch.Tensor([1,0,0]).cuda()[None,None],texture_type='vertex'))[:,:3].clone() )
             # color palette

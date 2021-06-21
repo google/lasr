@@ -61,7 +61,7 @@ flags.DEFINE_boolean('symmetric_texture', True, 'if true texture is symmetric!')
 
 flags.DEFINE_integer('subdivide', 3, '# to subdivide icosahedron, 3=642verts, 4=2562 verts')
 flags.DEFINE_integer('symidx', 0, 'symmetry index: 0-x 1-y 2-z')
-flags.DEFINE_integer('n_mesh', 1, 'num of meshes')
+flags.DEFINE_integer('n_bones', 1, 'num of meshes')
 flags.DEFINE_string('n_faces', '1280','number of faces for remeshing')
 flags.DEFINE_integer('n_hypo', 1, 'num of hypothesis cameras')
 
@@ -115,14 +115,14 @@ def reg_decay(curr_steps, max_steps, min_wt,max_wt):
 class LASR(MeshNet):
     def __init__(self, input_shape, opts, nz_feat=100):
         super(LASR, self).__init__(input_shape, opts, nz_feat)
-        self.rest_rs = torch.Tensor([[0,0,0,1]]).repeat(opts.n_mesh-1,1).cuda()
-        self.transg =  torch.Tensor([[0,0,0]]).cuda().repeat(opts.n_mesh-1,1)  # not including the body-to-world transform
-        self.ctl_rs =  torch.Tensor([[0,0,0,1]]).repeat(opts.n_hypo*(opts.n_mesh-1),1).cuda()
-        self.rest_ts = torch.zeros(opts.n_hypo*(opts.n_mesh-1),3).cuda()
-        self.ctl_ts =  torch.zeros(opts.n_hypo*(opts.n_mesh-1),3).cuda()
-        self.log_ctl = torch.Tensor([[0,0,0]]).cuda().repeat(opts.n_hypo*(opts.n_mesh-1),1)  # control point varuance
+        self.rest_rs = torch.Tensor([[0,0,0,1]]).repeat(opts.n_bones-1,1).cuda()
+        self.transg =  torch.Tensor([[0,0,0]]).cuda().repeat(opts.n_bones-1,1)  # not including the body-to-world transform
+        self.ctl_rs =  torch.Tensor([[0,0,0,1]]).repeat(opts.n_hypo*(opts.n_bones-1),1).cuda()
+        self.rest_ts = torch.zeros(opts.n_hypo*(opts.n_bones-1),3).cuda()
+        self.ctl_ts =  torch.zeros(opts.n_hypo*(opts.n_bones-1),3).cuda()
+        self.log_ctl = torch.Tensor([[0,0,0]]).cuda().repeat(opts.n_hypo*(opts.n_bones-1),1)  # control point varuance
 
-        if self.opts.n_mesh>1:
+        if self.opts.n_bones>1:
             self.ctl_rs  = nn.Parameter(self.ctl_rs) 
             self.rest_ts = nn.Parameter(self.rest_ts)
             self.ctl_ts  = nn.Parameter(self.ctl_ts) 
@@ -215,7 +215,7 @@ class LASR(MeshNet):
             decay_factor = 0.2*(1e-4)**(self.iters/100)
             decay_factor_r = decay_factor * np.ones(quat.shape[0])
             ### smaller noise for bones
-            decay_factor_r = decay_factor_r.reshape((-1,opts.n_mesh))
+            decay_factor_r = decay_factor_r.reshape((-1,opts.n_bones))
             decay_factor_r[:,1:] *= 1
             decay_factor_r[:,0] *=  1
             decay_factor_r = decay_factor_r.flatten()
@@ -227,8 +227,8 @@ class LASR(MeshNet):
             decay_factor_s = decay_factor
             scale = scale * (decay_factor_s*torch.normal(torch.zeros(scale.shape).cuda(),opts.rscale)).exp()
             
-        depth = depth.view(local_batch_size*2,1,opts.n_mesh,1).repeat(1,opts.n_hypo,1,1).view(-1,1)
-        trans = trans.view(local_batch_size*2,1,opts.n_mesh,2).repeat(1,opts.n_hypo,1,1).view(-1,2)
+        depth = depth.view(local_batch_size*2,1,opts.n_bones,1).repeat(1,opts.n_hypo,1,1).view(-1,1)
+        trans = trans.view(local_batch_size*2,1,opts.n_bones,2).repeat(1,opts.n_hypo,1,1).view(-1,2)
 
         if opts.use_gtpose:
             # w/ gt cam
@@ -251,7 +251,7 @@ class LASR(MeshNet):
         # transforms [body-to-cam, part1-to-body, ...]
         Rmat = quat.view(-1,3,3).permute(0,2,1)
         Tmat = torch.cat([trans, depth],1)
-        if opts.n_mesh>1:
+        if opts.n_bones>1:
             # skin computation
             # GMM
             dis_norm = (self.ctl_ts.view(opts.n_hypo,-1,1,3) - pred_v.view(2*local_batch_size,opts.n_hypo,-1,3)[0,:,None].detach()) # p-v, H,J,1,3 - H,1,N,3
@@ -264,30 +264,30 @@ class LASR(MeshNet):
             skin = skin.repeat(local_batch_size*2,1,1,1)
           
             # joint computation  
-            rest_ts = self.rest_ts[:,None,:,None].repeat(local_batch_size*2,1,1,1).view(-1,opts.n_mesh-1,3,1) # bh,m,3,1
-            ctl_ts = self.ctl_ts[:,None,:,None].repeat(local_batch_size*2,1,1,1).view(-1,opts.n_mesh-1,3,1) # bh,m,3,1
+            rest_ts = self.rest_ts[:,None,:,None].repeat(local_batch_size*2,1,1,1).view(-1,opts.n_bones-1,3,1) # bh,m,3,1
+            ctl_ts = self.ctl_ts[:,None,:,None].repeat(local_batch_size*2,1,1,1).view(-1,opts.n_bones-1,3,1) # bh,m,3,1
             
-            Rmat = Rmat.view(-1,opts.n_mesh,3,3)
-            Tmat = Tmat.view(-1,opts.n_mesh,3,1)
+            Rmat = Rmat.view(-1,opts.n_bones,3,3)
+            Tmat = Tmat.view(-1,opts.n_bones,3,1)
             Tmat[:,1:] = -Rmat[:,1:].matmul(ctl_ts)+Tmat[:,1:]+ctl_ts
             Rmat[:,1:] = Rmat[:,1:].permute(0,1,3,2)
             Rmat = Rmat.view(-1,3,3)
             Tmat = Tmat.view(-1,3)
 
-            self.joints_proj = obj_to_cam(rest_ts[:,:,:,0], Rmat.detach(), Tmat[:,np.newaxis].detach(), opts.n_mesh, opts.n_hypo,torch.eye(opts.n_mesh-1)[None,:,:,None].cuda())
+            self.joints_proj = obj_to_cam(rest_ts[:,:,:,0], Rmat.detach(), Tmat[:,np.newaxis].detach(), opts.n_bones, opts.n_hypo,torch.eye(opts.n_bones-1)[None,:,:,None].cuda())
             self.joints_proj = pinhole_cam(self.joints_proj, ppoint.detach(), scale.detach())
-            self.ctl_proj =    obj_to_cam(ctl_ts[:,:,:,0],  Rmat.detach(), Tmat[:,np.newaxis].detach(), opts.n_mesh, opts.n_hypo, torch.eye(opts.n_mesh-1)[None,:,:,None].cuda())
+            self.ctl_proj =    obj_to_cam(ctl_ts[:,:,:,0],  Rmat.detach(), Tmat[:,np.newaxis].detach(), opts.n_bones, opts.n_hypo, torch.eye(opts.n_bones-1)[None,:,:,None].cuda())
             self.ctl_proj = pinhole_cam(self.ctl_proj, ppoint.detach(), scale.detach())
         else:skin=None                
 
-        self.deform_v = obj_to_cam(pred_v, Rmat.view(-1,3,3), Tmat[:,np.newaxis,:],opts.n_mesh, opts.n_hypo,skin,tocam=False)
+        self.deform_v = obj_to_cam(pred_v, Rmat.view(-1,3,3), Tmat[:,np.newaxis,:],opts.n_bones, opts.n_hypo,skin,tocam=False)
 
 #        torch.cuda.synchronize()
 #        print('before rend time:%.2f'%(time.time()-start_time))
 
         
         # 1) flow rendering 
-        verts_fl = obj_to_cam(pred_v, Rmat, Tmat[:,np.newaxis,:],opts.n_mesh, opts.n_hypo,skin)
+        verts_fl = obj_to_cam(pred_v, Rmat, Tmat[:,np.newaxis,:],opts.n_bones, opts.n_hypo,skin)
         verts_fl = torch.cat([verts_fl,torch.ones_like(verts_fl[:, :, 0:1])], dim=-1)
         verts_pos0 = verts_fl.view(2*local_batch_size,opts.n_hypo,-1,4)[:local_batch_size].clone().view(local_batch_size*opts.n_hypo,-1,4)
         verts_pos1 = verts_fl.view(2*local_batch_size,opts.n_hypo,-1,4)[local_batch_size:].clone().view(local_batch_size*opts.n_hypo,-1,4)
@@ -330,17 +330,17 @@ class LASR(MeshNet):
 #        print('before rend + flow time:%.2f'%(time.time()-start_time))
               
         # 2) silhouette
-        Rmat_mask = Rmat.clone().view(-1,opts.n_mesh,3,3)
+        Rmat_mask = Rmat.clone().view(-1,opts.n_bones,3,3)
         Rmat_mask = torch.cat([Rmat_mask[:,:1].detach(), Rmat_mask[:,1:]],1).view(-1,3,3)
-        verts_mask = obj_to_cam(pred_v, Rmat_mask, Tmat[:,np.newaxis,:],opts.n_mesh, opts.n_hypo,skin)
+        verts_mask = obj_to_cam(pred_v, Rmat_mask, Tmat[:,np.newaxis,:],opts.n_bones, opts.n_hypo,skin)
         verts_mask = torch.cat([verts_mask,torch.ones_like(verts_mask[:, :, 0:1])], dim=-1)
         verts_mask = pinhole_cam(verts_mask, ppoint, scale)
 
 
         if opts.opt_tex=='yes':
             # 3) texture rendering
-            Rmat_tex = Rmat.clone().view(2*local_batch_size,opts.n_hypo,opts.n_mesh,3,3).view(-1,3,3)
-            verts_tex = obj_to_cam(pred_v, Rmat_tex, Tmat[:,np.newaxis,:],opts.n_mesh, opts.n_hypo,skin)
+            Rmat_tex = Rmat.clone().view(2*local_batch_size,opts.n_hypo,opts.n_bones,3,3).view(-1,3,3)
+            verts_tex = obj_to_cam(pred_v, Rmat_tex, Tmat[:,np.newaxis,:],opts.n_bones, opts.n_hypo,skin)
             verts_tex = torch.cat([verts_tex,torch.ones_like(verts_tex[:, :, 0:1])], dim=-1)
             verts_tex = pinhole_cam(verts_tex, ppoint, scale)
             offset = torch.Tensor( self.renderer_softtex.transform.transformer._eye ).cuda()[np.newaxis,np.newaxis]
@@ -357,7 +357,7 @@ class LASR(MeshNet):
 #        torch.cuda.synchronize()
 #        print('before rend + flow + sil + tex time:%.2f'%(time.time()-start_time))              
 
-        if opts.n_mesh>1 and self.iters==0:
+        if opts.n_bones>1 and self.iters==0:
             # part rendering
             self.part_render = self.renderer_softpart.render_mesh(sr.Mesh(verts_pre.view(2*local_batch_size,opts.n_hypo,-1,3)[:1,self.optim_idx].detach(), faces[:1], textures=skin_colors[None], texture_type='vertex'))[:,:3].detach()
         
@@ -470,12 +470,12 @@ class LASR(MeshNet):
                 self.total_loss += (self.tex[0][idx1[0].long()].detach() - self.tex[0]).abs().mean()*1e-3
     
         # 5) shape deformation loss
-        if opts.n_mesh>1:
+        if opts.n_bones>1:
             # bones
             self.bone_rot_l1 =  compute_geodesic_distance_from_two_matrices(
-                        quat.view(-1,opts.n_hypo,opts.n_mesh,9)[:,:,1:].reshape(-1,3,3), 
-             torch.eye(3).cuda().repeat(2*local_batch_size*opts.n_hypo*(opts.n_mesh-1),1,1)).mean() # small rotation
-            self.bone_trans_l1 = torch.cat([trans,depth],1).view(-1,opts.n_hypo,opts.n_mesh,3)[:,:,1:].abs().mean()
+                        quat.view(-1,opts.n_hypo,opts.n_bones,9)[:,:,1:].reshape(-1,3,3), 
+             torch.eye(3).cuda().repeat(2*local_batch_size*opts.n_hypo*(opts.n_bones-1),1,1)).mean() # small rotation
+            self.bone_trans_l1 = torch.cat([trans,depth],1).view(-1,opts.n_hypo,opts.n_bones,3)[:,:,1:].abs().mean()
             if opts.n_hypo>1:
                 factor=1
             else: 
@@ -489,7 +489,7 @@ class LASR(MeshNet):
             self.total_loss += self.arap_loss
 
         # 6) bone symmetry 
-        if opts.n_mesh>1 and opts.symmetric_loss:
+        if opts.n_bones>1 and opts.symmetric_loss:
            pointa = self.ctl_ts.view(opts.n_hypo, -1,3)
            pointb = torch.Tensor([[[-1,1,1]]]).cuda()*pointa
            self.total_loss += 0.1*pytorch3d.loss.chamfer_distance(pointa, pointb)[0]
@@ -503,22 +503,22 @@ class LASR(MeshNet):
             self.cam_loss += (ppoint_pred - ppoint).abs().mean()
             self.cam_loss = 0.2 * self.cam_loss
         else:
-            self.rotg_sm_sub = compute_geodesic_distance_from_two_matrices(quat.view(-1,opts.n_hypo,opts.n_mesh,9)[:local_batch_size,:].view(-1,3,3),
-                                                                            quat.view(-1,opts.n_hypo,opts.n_mesh,9)[local_batch_size:,:].view(-1,3,3)).view(-1,opts.n_hypo,opts.n_mesh)
+            self.rotg_sm_sub = compute_geodesic_distance_from_two_matrices(quat.view(-1,opts.n_hypo,opts.n_bones,9)[:local_batch_size,:].view(-1,3,3),
+                                                                            quat.view(-1,opts.n_hypo,opts.n_bones,9)[local_batch_size:,:].view(-1,3,3)).view(-1,opts.n_hypo,opts.n_bones)
             self.cam_loss =  0.001*self.rotg_sm_sub.mean()
-            if opts.n_mesh>1:
-                self.cam_loss += 0.01*(trans.view(-1,opts.n_hypo,opts.n_mesh,2)[:local_batch_size,:,1:] - 
-                              trans.view(-1,opts.n_hypo,opts.n_mesh,2)[local_batch_size:,:,1:]).abs().mean()
-                self.cam_loss += 0.01*(depth.view(-1,opts.n_hypo,opts.n_mesh,1)[:local_batch_size,:,1:] - 
-                              depth.view(-1,opts.n_hypo,opts.n_mesh,1)[local_batch_size:,:,1:]).abs().mean()
+            if opts.n_bones>1:
+                self.cam_loss += 0.01*(trans.view(-1,opts.n_hypo,opts.n_bones,2)[:local_batch_size,:,1:] - 
+                              trans.view(-1,opts.n_hypo,opts.n_bones,2)[local_batch_size:,:,1:]).abs().mean()
+                self.cam_loss += 0.01*(depth.view(-1,opts.n_hypo,opts.n_bones,1)[:local_batch_size,:,1:] - 
+                              depth.view(-1,opts.n_hypo,opts.n_bones,1)[local_batch_size:,:,1:]).abs().mean()
         self.total_loss += self.cam_loss
 
         # 8) aux losses
         # pull far away from the camera center
-        self.total_loss += 0.02*F.relu(2-Tmat.view(-1, 1, opts.n_mesh, 3)[:,:,:1,-1]).mean()
-        if opts.n_mesh>1:
-            bone_loc_loss = 0.1* F.grid_sample(self.ddts_barrier.repeat(1,opts.n_hypo,1,1).view(-1,1,opts.img_size,opts.img_size), self.joints_proj[:,:,:2].view(-1,opts.n_mesh-1,1,2),padding_mode='border').mean()
-            ctl_loc_loss =  0.1* F.grid_sample(self.ddts_barrier.repeat(1,opts.n_hypo,1,1).view(-1,1,opts.img_size,opts.img_size), self.ctl_proj[:,:,:2].view(-1,opts.n_mesh-1,1,2)   ,padding_mode='border').mean()
+        self.total_loss += 0.02*F.relu(2-Tmat.view(-1, 1, opts.n_bones, 3)[:,:,:1,-1]).mean()
+        if opts.n_bones>1:
+            bone_loc_loss = 0.1* F.grid_sample(self.ddts_barrier.repeat(1,opts.n_hypo,1,1).view(-1,1,opts.img_size,opts.img_size), self.joints_proj[:,:,:2].view(-1,opts.n_bones-1,1,2),padding_mode='border').mean()
+            ctl_loc_loss =  0.1* F.grid_sample(self.ddts_barrier.repeat(1,opts.n_hypo,1,1).view(-1,1,opts.img_size,opts.img_size), self.ctl_proj[:,:,:2].view(-1,opts.n_bones-1,1,2)   ,padding_mode='border').mean()
             self.total_loss += 100*(bone_loc_loss+ctl_loc_loss)
         
 
@@ -532,7 +532,7 @@ class LASR(MeshNet):
         aux_output['texture_loss'] = self.texture_loss
         aux_output['flow_rd_loss'] = self.flow_rd_loss
         aux_output['triangle_loss'] = self.triangle_loss
-        if opts.n_mesh>1:
+        if opts.n_bones>1:
             aux_output['lmotion_loss'] = self.lmotion_loss
         aux_output['current_nscore'] = self.texture_loss_sub.mean(0) + self.flow_rd_loss_sub.mean(0) + self.mask_loss_sub.mean(0)
         if opts.n_hypo > 1:

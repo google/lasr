@@ -105,7 +105,7 @@ def visualize(img, outputs, predictor,ipath,saveobj=False,epoch=None):
     if epoch is None:
         epoch=int(ipath.split('/')[-1].split('.')[0])
     #if True:
-    if saveobj or predictor.opts.n_mesh>1:
+    if saveobj or predictor.opts.n_bones>1:
         save_dir = os.path.join(predictor.opts.checkpoint_dir, predictor.opts.name)
         fusion.meshwrite('%s/pred%d.ply'%(save_dir, epoch), np.asarray(vert.cpu()), np.asarray(predictor.faces.cpu()[0]), colors=255*outputs['tex'].cpu())
         fusion.meshwrite('%s/vp2pred%d.ply'%(save_dir, epoch), np.asarray(vert_vp2.cpu()), np.asarray(predictor.faces.cpu()[0]), colors=255*outputs['tex'].cpu())
@@ -139,7 +139,7 @@ def visualize(img, outputs, predictor,ipath,saveobj=False,epoch=None):
     redImg = np.zeros(img.shape, np.uint8)
     redImg[:,:] = (0, 0, 255)
     redMask = (redImg * mask_pred[:,:,np.newaxis]/255).astype(np.uint8)
-    #if opts.n_mesh>1:
+    #if opts.n_bones>1:
     #    redMask = np.asarray(predictor.part_render[0].permute(1,2,0).cpu()*255, dtype=np.uint8)
     redMask = cv2.addWeighted(redMask, 0.5, (255*img).astype(np.uint8), 1, 0, (255*img).astype(np.uint8))
 
