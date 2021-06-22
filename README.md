@@ -114,6 +114,15 @@ bash scripts/render_result.sh pika
 ```
 </details>
 
+<details><summary>Monitor optimization</summary>
+
+To monitor optimization, run
+```
+tensorboard --logdir log/
+```
+
+</details>
+
 ### Example outputs
 
 <p align="center"> 
