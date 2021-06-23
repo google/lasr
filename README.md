@@ -126,8 +126,9 @@ tensorboard --logdir log/
 ### Example outputs
 
 <p align="center"> 
-<img src="figs/1.gif" alt="" width="35%" />
-<img src="figs/2.gif" alt="" width="63%" /> 
+<img src="figs/1.gif" alt="" width="17%" />
+<img src="figs/2.gif" alt="" width="32%" /> 
+<img src="figs/3.gif" alt="" width="32%" /> 
 </p>
 
 <details><summary>Evaluation</summary>

@@ -193,7 +193,7 @@ def main():
             refcam[2,3] = 20 # depth
             if args.cam_type=='perspective':
                 refcam[3,2] = refimg.shape[1]/2 # px py
-                refcam[3,3] = refimg.shape[1]/2 # px py
+                refcam[3,3] = refimg.shape[0]/2 # px py
                 refcam[3,:2] = 8*img_size/2 # fl
             else:
                 refcam[3,2] = refimg.shape[1]/2 # px py
