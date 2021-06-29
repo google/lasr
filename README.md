@@ -49,10 +49,11 @@ bash preprocess/auto_gen.sh camel
 
 <details><summary>Your own video</summary>
 
-You will need to download and install detectron2 to obtain object segmentations as instructed below.
+You will need to install and clone [detectron2](https://github.com/facebookresearch/detectron2) to obtain object segmentations as instructed below.
 ```
 python -m pip install detectron2 -f \
   https://dl.fbaipublicfiles.com/detectron2/wheels/cu110/torch1.7/index.html
+git clone https://github.com/facebookresearch/detectron2
 ```
 
 First, use any video processing tool (such as ffmpeg) to extract frames into `JPEGImages/Full-Resolution/name-of-the-video`.
