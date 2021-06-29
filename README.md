@@ -64,7 +64,7 @@ ffmpeg -ss 00:00:04 -i database/raw/IMG-7495.MOV -vf fps=10 database/DAVIS/JPEGI
 Then, run pointrend to get segmentations:
 ```
 cd preprocess
-python mask.py pika path-to-detectron2-root; cd -
+python mask.py pika ./detectron2; cd -
 ```
 
 Assuming you have downloaded VCN flow in the previous step, run flow prediction:
