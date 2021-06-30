@@ -13,10 +13,11 @@ git clone --recursive -j8 git://github.com/hjwdzh/Manifold; cd Manifold; mkdir b
 For docker installation, please see [install.md](./docs/install.md)
 
 ## Data preparation
-Create folders to store data and training logs
+Create folders to store intermediate data and training logs
 ```
 mkdir log; mkdir tmp; 
 ```
+The following steps generates data in subfolders under `./database/DAVIS/`
 
 <details><summary>Synthetic data</summary>
 
