@@ -41,8 +41,7 @@ os.mkdir(imgdir)
 os.mkdir(maskdir)
 
 import sys
-sys.path.insert(0,'%s/projects/PointRend/'%detbase)
-import point_rend
+from detectron2.projects import point_rend
 cfg = get_cfg()
 point_rend.add_pointrend_config(cfg)
 cfg.merge_from_file('%s/projects/PointRend/configs/InstanceSegmentation/pointrend_rcnn_X_101_32x8d_FPN_3x_coco.yaml'%(detbase))
