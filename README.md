@@ -12,14 +12,23 @@ git clone --recursive -j8 git://github.com/hjwdzh/Manifold; cd Manifold; mkdir b
 ```
 For docker installation, please see [install.md](./docs/install.md)
 
+## Overview
+We provide instructions for data preparation and shape optimization on three types of data,
+- Spot: Synthetic rendering of 3D meshes for debugging and evaluation
+- DAVIS-camsl: Video frames with ground-truth segmentation masks
+- Pika: Your own video
+
+We recomend first trying spot and make sure the system works, and then run the rest two examples.
+
+
 ## Data preparation
 Create folders to store intermediate data and training logs
 ```
 mkdir log; mkdir tmp; 
 ```
-The following steps generates data in subfolders under `./database/DAVIS/`
+The following steps generates data in subfolders under `./database/DAVIS/`. 
 
-<details><summary>Synthetic data</summary>
+<details><summary>Spot: synthetic data</summary>
 
 Download and unzip the pre-computed {silhouette, flow, rgb} rendering of spot,
 ```
@@ -35,7 +44,7 @@ python scripts/render_syn.py
 </details>
 
 
-<details><summary>Real data (DAVIS)</summary>
+<details><summary>DAVIS-camel: real video frames with segmentation</summary>
 
 First, download [DAVIS 2017 trainval set](https://data.vision.ee.ethz.ch/csergi/share/davis/DAVIS-2017-trainval-Full-Resolution.zip) and 
 copy `JPEGImages/Full-Resolution` and `Annotations/Full-Resolution` folders of *DAVIS-camel* into the according folders in `database`.
@@ -54,7 +63,7 @@ bash preprocess/auto_gen.sh camel
 ```
 </details>
 
-<details><summary>Your own video</summary>
+<details><summary>Pika: your own video</summary>
 
 You will need to install and clone [detectron2](https://github.com/facebookresearch/detectron2) to obtain object segmentations as instructed below.
 ```
@@ -81,7 +90,7 @@ bash preprocess/auto_gen.sh pika
 </details>
 
 ## Single video optimization
-<details><summary>Synthetic spot</summary>
+<details><summary>Spot</summary>
 Next, we want to optimize the shape, texture and camera parameters from image observartions.
 Optimizing spot takes ~20min on a single Titan Xp GPU.
 
@@ -96,7 +105,7 @@ python render_vis.py --testdir log/spot3-1/ --seqname spot3 --freeze --outpath t
 ```
 </details>
 
-<details><summary>DAVIS camel</summary>
+<details><summary>DAVIS-camel</summary>
 
 Optimize on camel observations. 
 ```
@@ -109,7 +118,7 @@ bash scripts/render_result.sh camel
 ```
 </details>
 
-<details><summary>Costumized video (Pika)</summary>
+<details><summary>Pika</summary>
 
 Similarly, run the following steps to reconstruct pika
 ```
