@@ -21,10 +21,17 @@ The following steps generates data in subfolders under `./database/DAVIS/`
 
 <details><summary>Synthetic data</summary>
 
-To render {silhouette, flow, rgb} observations of spot.
+Download and unzip the pre-computed {silhouette, flow, rgb} rendering of spot,
+```
+gdown https://drive.google.com/uc?id=11Y3WQ0Qd7W-6Wds1_A7KsTbaG7jrmG7N -O spot.zip
+unzip spot.zip -d database/DAVIS/
+```
+
+Otherwise, you could render the same data locally by running,
 ```
 python scripts/render_syn.py
 ```
+
 </details>
 
 
@@ -38,7 +45,6 @@ cp ...davis-path/DAVIS-lasr/DAVIS/JPEGImages/Full-Resolution/camel/ -rf database
 ```
 Then download pre-trained VCN optical flow:
 ```
-pip install gdown
 mkdir ./lasr_vcn
 gdown https://drive.google.com/uc?id=139S6pplPvMTB-_giI6V2dxpOHGqqAdHn -O ./lasr_vcn/vcn_rob.pth
 ```
