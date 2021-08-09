@@ -123,6 +123,7 @@ mkdir_p( '%s/DAVIS/Annotations/Full-Resolution/%s/'  %(filedir,args.outdir))
 mkdir_p( '%s/DAVIS/FlowFW/Full-Resolution/%s/'       %(filedir,args.outdir))
 mkdir_p( '%s/DAVIS/FlowBW/Full-Resolution/%s/'       %(filedir,args.outdir))
 mkdir_p( '%s/DAVIS/Meshes/Full-Resolution/%s/'       %(filedir,args.outdir))
+mkdir_p( '%s/DAVIS/Camera/Full-Resolution/%s/'       %(filedir,args.outdir))
 
 
 cam_list = []
@@ -190,6 +191,7 @@ for i in range(0,args.nframes):
     cv2.imwrite('%s/DAVIS/JPEGImages/Full-Resolution/%s/%05d.jpg'     %(filedir,args.outdir,i),img_pred[:,:,::-1])
     cv2.imwrite('%s/DAVIS/Annotations/Full-Resolution/%s/%05d.png'    %(filedir,args.outdir,i),128*mask_pred)
     cammat = np.asarray(torch.cat([proj_cam[0], depth[0]],0).cpu())
+    np.savetxt(    '%s/DAVIS/Camera/Full-Resolution/%s/%05d.txt'%(filedir,args.outdir,i),cammat)
     newmesh.export('%s/DAVIS/Meshes/Full-Resolution/%s/%05d.obj'%(filedir,args.outdir,i))
 
 pp = torch.Tensor([[0,0]]).cuda()
