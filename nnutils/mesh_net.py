@@ -237,7 +237,7 @@ class LASR(MeshNet):
             trans_pred = trans.clone()
             ppoint_pred = ppoint.clone()
             depth_pred = depth.clone()
-             
+
             scale = 10*self.cams[:,:1]
             trans = self.cams[:,1:3]
             quat = kornia.quaternion_to_rotation_matrix( torch.cat( (self.cams[:,4:],self.cams[:,3:4] ) ,-1) ).view(-1,9)

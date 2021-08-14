@@ -276,7 +276,8 @@ class MeshPredictor(object):
         self.verts = obj_to_cam(self.pred_v, Rmat, Tmat[:,np.newaxis,:], opts.n_bones,opts.n_hypo,skin,tocam=True)
         self.Tmat = torch.zeros(3,1).cuda()
         self.Rmat = torch.eye(3).cuda()
-        self.gaussian_3d = obj_to_cam(torch.Tensor(self.sphere.vertices).cuda()[None], Rmat, Tmat[:,np.newaxis], opts.n_bones, opts.n_hypo,
+        if opts.n_bones>1:
+            self.gaussian_3d = obj_to_cam(torch.Tensor(self.sphere.vertices).cuda()[None], Rmat, Tmat[:,np.newaxis], opts.n_bones, opts.n_hypo,
                                 torch.eye(opts.n_bones-1)[None].repeat(self.nsphere_verts,1,1).permute(1,2,0).reshape(1,opts.n_bones-1,-1,1).cuda(),tocam=True)
         self.ppoint, self.scale = self.ppoint, scale
         verts = torch.cat([verts,torch.ones_like(verts[:, :, 0:1])], dim=-1)

@@ -163,6 +163,16 @@ python scripts/eval_badja.py --testdir log/camel-5/ --seqname camel
 
 ## Additional Notes
 
+<details><summary>Optimize with ground-truth camera</summary>
+
+We provide an example using synthetic spot data. Please run
+
+```
+bash scripts/spot3-gtcam.sh
+```
+
+</details>
+
 <details><summary>Other videos in DAVIS/BAJDA</summary>
 
 Please refer to [data preparation](#data-preparation) and [optimization](#single-video-optimization) of the camel example, and modify camel to other sequence names, such as dance-twirl.
