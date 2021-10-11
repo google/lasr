@@ -8,7 +8,7 @@ conda activate lasr
 # install softras
 cd third_party/softras; python setup.py install; cd -;
 # install manifold remeshing
-git clone --recursive -j8 git://github.com/hjwdzh/Manifold; cd Manifold; mkdir build; cd build; cmake .. -DCMAKE_BUILD_TYPE=Release;make; cd ../../
+git clone --recursive git://github.com/hjwdzh/Manifold; cd Manifold; mkdir build; cd build; cmake .. -DCMAKE_BUILD_TYPE=Release;make -j8; cd ../../
 ```
 For docker installation, please see [install.md](./docs/install.md)
 
