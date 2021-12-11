@@ -18,7 +18,7 @@ res=Full-Resolution
 seqname=$1
 newname=r${seqname}
 
-rm ./$seqname -rf
+# rm ./$seqname -rf
 # run flow on frames with sufficient motion
 CUDA_VISIBLE_DEVICES=0 python preprocess/auto_gen.py --datapath $davisdir/JPEGImages/$res/$seqname/ --loadmodel ./lasr_vcn/vcn_rob.pth  --testres 1
 
@@ -30,7 +30,7 @@ cp $seqname/JPEGImages/*   -rf $davisdir/JPEGImages/$res/$newname
 cp $seqname/Annotations/* -rf $davisdir/Annotations/$res/$newname
 cp $seqname/FlowFW/*           -rf $davisdir/FlowFW/$res/$newname
 cp $seqname/FlowBW/*           -rf $davisdir/FlowBW/$res/$newname
-rm ./$seqname -rf
+# rm ./$seqname -rf
 
 # run flow on the full seq
 CUDA_VISIBLE_DEVICES=0 python preprocess/auto_gen.py --datapath $davisdir/JPEGImages/$res/$seqname/ --loadmodel ./lasr_vcn/vcn_rob.pth  --testres 1 --flow_threshold 0
@@ -38,4 +38,4 @@ mkdir $davisdir/FlowFW/$res/$seqname
 mkdir $davisdir/FlowBW/$res/$seqname
 cp $seqname/FlowFW/*           -rf $davisdir/FlowFW/$res/$seqname
 cp $seqname/FlowBW/*           -rf $davisdir/FlowBW/$res/$seqname
-rm ./$seqname -rf
+#rm ./$seqname -rf
