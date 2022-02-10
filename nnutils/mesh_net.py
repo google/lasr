@@ -199,12 +199,19 @@ class LASR(MeshNet):
         if not self.training:
            return scale,trans,quat, depth, ppoint
         
-        # change according to intrinsics 
-        scale = self.cams[:,:1]*scale # here assumes intrinsics change
-        depth[:,:1] = self.cams[:,:1]* depth[:,:1]; depth = depth.view(-1,1)
-        
-        ppb1 = self.cams[:local_batch_size,:1]  *self.pp[:local_batch_size]  /(opts.img_size/2.)
+        # transform the CNN-predicted focal length 
+        # (wrt original image without cropping) to the cropped image
+        scale = self.cams[:,:1]*scale # here assumes intrinsic may change
+        # transform depth as well, to ensure the rendered silhouette 
+        # occupies enough pixels of the cropped image at initialization 
+        depth[:,:1] = self.cams[:,:1]* depth[:,:1]; depth = depth.view(-1,1) 
+       
+        # transform the CNN-predicted principal points 
+        # (wrt original image, before cropping) to the cropped image
+        ppb1 = self.cams[:local_batch_size,:1]*self.pp[:local_batch_size]/(opts.img_size/2.)
         ppb2 = self.cams[local_batch_size:,:1]*self.pp[local_batch_size:]/(opts.img_size/2.)
+        # represent pp of croped frame 2 as transformed pp of cropped frame 1
+        # to reduce ambiguity caused by inconsistent pp over time
         ppa1 = ppoint[:local_batch_size] + ppb1 + 1
         ppa2 = ppa1 * (self.cams[local_batch_size:,:1] / self.cams[:local_batch_size,:1]) 
         ppoint[local_batch_size:]= ppa2 - ppb2 -1
@@ -263,13 +270,14 @@ class LASR(MeshNet):
             skin_colors = (skin[self.optim_idx] * colormap[:,None]).sum(0)/256.
             skin = skin.repeat(local_batch_size*2,1,1,1)
           
-            # joint computation  
+            # rest_ts: joint center
+            # ctl_ts: control points
             rest_ts = self.rest_ts[:,None,:,None].repeat(local_batch_size*2,1,1,1).view(-1,opts.n_bones-1,3,1) # bh,m,3,1
             ctl_ts = self.ctl_ts[:,None,:,None].repeat(local_batch_size*2,1,1,1).view(-1,opts.n_bones-1,3,1) # bh,m,3,1
             
             Rmat = Rmat.view(-1,opts.n_bones,3,3)
             Tmat = Tmat.view(-1,opts.n_bones,3,1)
-            Tmat[:,1:] = -Rmat[:,1:].matmul(ctl_ts)+Tmat[:,1:]+ctl_ts
+            Tmat[:,1:] = -Rmat[:,1:].matmul(rest_ts)+Tmat[:,1:]+rest_ts
             Rmat[:,1:] = Rmat[:,1:].permute(0,1,3,2)
             Rmat = Rmat.view(-1,3,3)
             Tmat = Tmat.view(-1,3)

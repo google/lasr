@@ -6,7 +6,8 @@
 conda env create -f lasr.yml
 conda activate lasr
 # install softras
-cd third_party/softras; python setup.py install; cd -;
+# to compile for different GPU arch, see https://discuss.pytorch.org/t/compiling-pytorch-on-devices-with-different-cuda-capability/106409
+pip install -e third_party/softras/
 # install manifold remeshing
 git clone --recursive git://github.com/hjwdzh/Manifold; cd Manifold; mkdir build; cd build; cmake .. -DCMAKE_BUILD_TYPE=Release;make -j8; cd ../../
 ```
